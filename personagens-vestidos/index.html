@@ -1,0 +1,31 @@
+<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Carregando prévia…</title><body style="margin:0;background:#080c12;color:white;font:16px system-ui;padding:24px">Preparando a prévia de lutadores vestidos…<script>
+(async()=>{
+ const response=await fetch('../index.html');if(!response.ok)throw Error('Não foi possível abrir o jogo principal.');let html=await response.text();
+ html=html.replace('<head>','<head><base href="../">');
+ const start=html.indexOf('function buildFighter(data,x,z){'),end=html.indexOf('\nfunction rebuild()',start);if(start<0||end<0)throw Error('Estrutura do jogo não encontrada.');
+ const fighter=`async function buildFighter(data,x,z){
+ const root=new THREE.Group();scene.add(root);root.position.set(x,0,z);
+ const url=HUMAN_URLS[data.id%4===0||data.id%4===3?'woman':'man'];const gltf=await loadModelTemplate(url);const model=cloneSkinnedModel(gltf.scene);
+ model.traverse(o=>{if(o.isMesh){o.castShadow=true;o.receiveShadow=true;if(o.material){o.material=o.material.clone();o.material.side=THREE.DoubleSide}}});
+ const box=new THREE.Box3().setFromObject(model),size=box.getSize(new THREE.Vector3()),center=box.getCenter(new THREE.Vector3());model.position.set(-center.x,-box.min.y,-center.z);model.scale.setScalar(2.05/size.y);root.add(model);
+ const mixer=new THREE.AnimationMixer(model),bones={};model.traverse(o=>{if(o.isBone)bones[o.name]=o});const baseBones={};for(const [n,b] of Object.entries(bones))baseBones[n]=b.quaternion.clone();
+ const shadow=new THREE.Mesh(new THREE.CircleGeometry(.78,32),new THREE.MeshBasicMaterial({color:0x04070c,transparent:true,opacity:.65,depthWrite:false}));shadow.rotation.x=-Math.PI/2;shadow.scale.set(1.45,.56,1);shadow.position.y=.035;root.add(shadow);
+ return {root,data,arms:[],legs:[],health:100,stamina:100,attackLock:0,stun:0,anim:0,blocking:false,aiClock:0,aura:new THREE.PointLight(data.accent,.2,1.2),render:model,shadow,silhouette:model,characterArt:model,mixer,animations:gltf.animations||[],activeAction:null,pose:'Idle',loading:false,bones,baseBones};
+}`;
+ html=html.slice(0,start)+fighter+html.slice(end);
+ html=html.replace("const MODEL_URLS=MODEL_TYPES.map((n,i)=>n+'.glb');","const MODEL_URLS=MODEL_TYPES.map((n,i)=>'../'+n+'.glb');const HUMAN_URLS={man:'./teste-realista/grab3d/man-base-character-rigged.glb',woman:'./teste-realista/grab3d/woman-base-character-rigged.glb'};");
+ html=html.replace('function rebuild(){','async function rebuild(){');
+ html=html.replace("player=buildFighter(FIGHTERS[selectedIndex],-2.3,0);cpu=buildFighter(FIGHTERS[cpuIndex],2.3,0);","[player,cpu]=await Promise.all([buildFighter(FIGHTERS[selectedIndex],-2.3,0),buildFighter(FIGHTERS[cpuIndex],2.3,0)]);");
+ html=html.replace('function begin(){','async function begin(){').replace('rebuild();playing=true;','await rebuild();playing=true;');
+ html=html.replace("if(f.mixer)f.mixer.update(dt);if(f.anim>0&&f.mixer&&!f.stun)setFighterAnim(f,f.pose||'Punch',.06);if(f.stun>0&&f.mixer){f.pose='RecieveHit';setFighterAnim(f,'RecieveHit',.05)}", "if(f.mixer)f.mixer.update(dt);if(f.anim>0&&!f.stun)poseHuman(f,f.pose==='kick'?'kick':f.pose==='block'?'block':'punch',Math.sin(Math.min(1,(1.1-f.anim)/1.1)*Math.PI));else if(f.blocking)poseHuman(f,'block',1);");
+ html=html.replace('if(f.render){f.render.rotation.z=(f.attackLock>.45?-.12:.10)*pulse;f.render.position.y=1.44+Math.abs(pulse)*.06}', 'if(f.render){f.render.rotation.z=(f.attackLock>.45?-.035:.035)*pulse}').replace('if(f.render){f.render.rotation.z*=.82;f.render.position.y=1.80+Math.sin(clock*5+f.data.id)*.008;f.render.scale.y+=(1-f.render.scale.y)*.15}', 'if(f.render){f.render.rotation.z*=.82}');
+ html=html.replace("function setFighterAnim(f,name,fade=.14){if(!f.mixer||!f.animations?.length)return;", "function setFighterAnim(f,name,fade=.14){if(!f.mixer||!f.animations?.length)return;if(name.toLowerCase()==='idle'){f.mixer.stopAllAction();f.activeAction=null;return;}");
+ const pose=`function poseHuman(f,kind,pulse=1){if(!f.bones)return;const pose=kind==='kick'?{RightUpLeg:[-40,0,-5],RightLeg:[16,0,0],LeftArm:[-24,0,32]}:kind==='block'?{RightArm:[-36,0,-42],RightForeArm:[-54,0,-25],LeftArm:[-36,0,42],LeftForeArm:[-54,0,25]}:{RightArm:[-6,0,-78],RightForeArm:[0,0,-24],LeftArm:[-23,0,29],Spine01:[0,-10,0]};const d=Math.PI/180;for(const [n,b] of Object.entries(f.bones)){const base=f.baseBones[n];if(base)b.quaternion.copy(base);const v=pose[n];if(v){const e=new THREE.Euler(v[0]*d*pulse,v[1]*d*pulse,v[2]*d*pulse,'XYZ');b.quaternion.multiply(new THREE.Quaternion().setFromEuler(e))}}}
+`;
+ html=html.replace('function setFighterAnim(f,name,fade=.14)',pose+'function setFighterAnim(f,name,fade=.14)');
+ html=html.replace("attacker.pose=special?'Shoot_OneHanded':type==='kick'?'Punch':'Punch';if(attacker.mixer)setFighterAnim(attacker,attacker.pose,.06);", "attacker.pose=special?'punch':type==='kick'?'kick':'punch';if(attacker.mixer)setFighterAnim(attacker,'run',.06);");
+ html=html.replace("<p class=\"footer-note\">40 identidades originais; personagens em arte realista animada sobre uma arena 3D. Missões e golpes ainda são protótipos.</p>","<p class=\"footer-note\">Prévia isolada: menu, elenco, luta livre, missões e controles familiares; personagens humanos 3D vestidos. Animações de andar/correr do modelo; golpes demonstrativos articulados. A página principal original permanece preservada.</p>");
+ html=html.replace('Escolha um lutador: você enfrenta a máquina em um duelo 1 contra 1. Quarenta lutadores originais com poderes próprios. Em uma luta 3D contra a CPU, com arte realista original dos lutadores.', 'Escolha um dos lutadores do elenco original e enfrente a máquina. Prévia isolada que mantém o menu e as missões familiares, com os personagens trocados por lutadores humanos 3D vestidos.');
+ document.open();document.write(html);document.close();
+})().catch(e=>{document.body.innerHTML='Falha ao preparar a prévia: '+e.message;console.error(e)});
+</script></body></html>

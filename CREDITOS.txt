@@ -1,0 +1,7 @@
+LENDAS DA ARENA — CRÉDITOS DE MODELOS
+
+Os modelos-base GLB da pasta models/ vêm do pack Ultimate Animated Characters, da Quaternius, CC0.
+Eles são personagens de fantasia estilizados e pré-rigados/animações incluídas; não são humanos fotorrealistas.
+Fonte e confirmação de licença: https://app.cinevva.com/game-assets/free-3d-character-models
+Pacote: https://quaternius.com/packs/ultimatedanimatedcharacters.html
+Os nomes, cenários, interface e poderes originais do protótipo são independentes do pacote.
